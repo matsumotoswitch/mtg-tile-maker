@@ -1,0 +1,467 @@
+/* --- 全体共通設定 --- */
+* {
+  box-sizing: border-box; /* 枠線を含めた計算でズレを防止 */
+  color: #eeeeee;
+  font-size: 16px;
+}
+
+body {
+  background: #4a4842;
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* レイアウト全体 */
+.container {
+  display: flex;
+  align-items: stretch;
+  height: 100vh;
+}
+
+.left, .right {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.left {
+  width: 50%;
+  border-right: 1px solid #3a3430;
+}
+
+.right {
+  width: 50%;
+}
+
+/* 上部パネル：下揃えを基準にする */
+.search-panel, .settings {
+  padding: 0px 8px 8px 8px;
+  background: #3b3732;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* 中身を下側に強制的に寄せる */
+  min-height: 88px;
+  flex-shrink: 0;
+}
+
+/* 検索グループ：下端を物理的に揃える */
+.search-input-group { 
+  display: flex;
+  gap: 8px;
+  align-items: flex-end; /* 子要素の下端を一直線に */
+  margin-top: 4px;
+}
+
+#searchInput {
+  flex: 1;
+  height: 36px;
+  padding: 0 12px;
+  background: #5a5852;
+  color: #f5f3f0;
+  border: 1px solid #6c6a64;
+  border-radius: 4px;
+  outline: none;
+}
+
+/* ボタン：高さを完全同期 */
+#searchBtn, #generateBtn {
+  min-width: 100px;
+  height: 36px;
+  padding: 0 16px;
+  color: #ffffff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  transition: all 0.1s ease;
+  border: 1px solid #1a1a1a;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#searchBtn { background: linear-gradient(to bottom, #3a4b5b, #1e2b37); }
+#generateBtn { background: linear-gradient(to bottom, #7d5a2a, #4e3516); min-width: 120px; }
+
+#searchBtn:hover, #generateBtn:hover { filter: brightness(1.5); }
+#searchBtn:active, #generateBtn:active { transform: translate(1px, 1px); }
+
+/* 出力設定エリア */
+.settings {
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.setting-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.setting {
+  display: flex;
+  flex-direction: column;
+}
+
+.setting label {
+  margin-bottom: 8px;
+}
+
+.setting input[type="number"] {
+  height: 38px;
+  width: 128px;
+  padding: 0 8px;
+  background: #5a5852;
+  color: #f5f3f0;
+  border: 1px solid #6c6a64;
+  border-radius: 4px;
+}
+
+.toggle-row { 
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+/* 検索結果・ドロップエリア */
+.results, #dropArea {
+  margin-top: 8px;
+  background: #3b3732;
+  border-radius: 8px;
+  flex: 1; 
+  overflow-y: auto;
+}
+
+.results {
+	padding: 10px 10px 10px 10px;
+}
+
+#dropArea {
+  background: #2a2824;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* 横配置のデフォルト（JSで上書き可） */
+  transition: all 0.2s;
+}
+
+#dropArea * {
+  pointer-events: none;
+}
+
+/* ただし、削除ボタンだけはクリックできるようにする */
+#dropArea .canvas-card button {
+  pointer-events: auto;
+}
+
+/* ドラッグオーバー時の視覚効果 */
+#dropArea.dragover {
+  background: #3e3a32 !important;
+  border-color: #ffd700 !important;
+  box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.2);
+}
+
+/* ローディングスピナー */
+.loader {
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-left-color: #ffd700;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 1s linear infinite;
+  margin: 30px auto 10px auto;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  text-align: center;
+  color: #ffd700;
+  font-size: 13px;
+}
+
+/* --- カード表示パーツ（D&Dを阻害しない設定） --- */
+.card-item {
+  display: inline-block;
+  width: 100%; /* resultsの中では幅調整される */
+  max-width: 220px;
+  margin: 0px 4px 8px 0px;
+  cursor: grab;
+  position: relative;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  user-select: none; /* テキスト選択を無効にしてドラッグしやすく */
+}
+
+.card-item:active { cursor: grabbing; }
+
+.card-item img {
+  width: 100%;
+  display: block;
+  pointer-events: none; /* 画像がドラッグイベントを邪魔しないようにする */
+}
+
+.card-overlay {
+  position: absolute;
+  left: 0; right: 0; bottom: 34px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  pointer-events: none;
+  text-align: center;
+}
+
+.card-overlay .name {
+  font-weight: bold;
+}
+
+.card-overlay .name,
+.card-overlay .released,
+.card-overlay .size {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.card-overlay .set-info {
+  color: #ccc;
+  margin-top: 2px;
+}
+
+.card-overlay .date-size {
+  color: #aaa;
+  margin-top: 1px;
+}
+
+/* リンクボタンの修正 */
+.card-footer {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 34px;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.card-link {
+  color: #fff !important;
+  text-decoration: none;
+  font-weight: bold;
+  padding-right: 8px;
+}
+
+/* ドロップされた後のカード */
+.canvas-card {
+  position: relative;
+  width: 100%;
+}
+.canvas-card img {
+  width: 100%;
+  border-radius: 4px;
+  display: block;
+}
+.canvas-card button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(255, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+#dropArea.dragover {
+  background: rgba(255, 215, 0, 0.1) !important;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+}
+
+/* カード内の要素がドラッグイベントを遮断しないように徹底 */
+.card-item * {
+  pointer-events: none;
+}
+/* ただし、リンクだけはクリック可能にする */
+.card-item .card-footer, 
+.card-item .card-link {
+  pointer-events: auto;
+}
+
+#dropArea * {
+  pointer-events: none;
+}
+/* ただし削除ボタンなどは後でクリックできるようにする */
+#dropArea button, #dropArea a {
+  pointer-events: auto;
+}
+
+/* ドロップエリアのレイアウト調整 */
+#dropArea {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 10px; /* ここはJSのgapと連動させたい場合は JSで制御 */
+  padding: 10px 8px;
+  background: #2a2824;
+  min-height: 300px;
+  overflow-y: auto;
+}
+
+/* 出力画像を表現する内側の枠（アートボード） */
+.artboard {
+  background: #eee;    /* 少し暗めにしてキャンバス感を出す */
+  border: 1px solid #777; /* 指定の細い実線 */
+  display: grid;
+  padding: 0;
+  margin: 0;
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  transition: width 0.3s ease;
+  min-height: 100px; /* 空の状態でも枠が見えるように */
+}
+
+/* ドラッグオーバー時の外枠反応 */
+#dropArea.dragover {
+  border: 1px solid #ffd700;
+  background: #32302b !important;
+}
+
+/* カード内の要素がドラッグを邪魔しないようにする */
+.card-item img, .card-overlay, .card-overlay * {
+  pointer-events: none;
+}
+
+.card-footer, .card-link {
+  pointer-events: auto;
+}
+
+/* 削除ボタンのスタイル */
+.remove-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(255, 0, 0, 0.8);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto !important;
+}
+/* ドラッグ関連のスタイル */
+.card-item.dragging {
+  opacity: 0.5;
+}
+
+/* カード内の要素がドラッグを邪魔しないようにする */
+.card-item img, .card-overlay {
+  pointer-events: none;
+}
+
+/* ドロップ後のカードスタイル */
+.canvas-card {
+  position: relative;
+  line-height: 0; /* 画像下の余計な隙間を消す */
+}
+
+.canvas-card img {
+  width: 100%;
+  display: block;
+  border-radius: 0; /* 出力画像用なので角丸なし */
+}
+
+.remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(255, 0, 0, 0.8);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.langArea { display: flex; gap: 4px; }
+.langBtn {
+  background: #333;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+.langBtn.active {
+  border-color: #ffd700;
+  background: #554a00;
+}
+
+/* --- モダンなスクロールバーのデザイン --- */
+
+/* スクロールバー全体の幅（細めに設定） */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* スクロールバーの通り道（背景に馴染ませる） */
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+/* 動くバーの部分（つまみ） */
+::-webkit-scrollbar-thumb {
+  background: #6b6659; /* 本体の背景色より少し明るい茶灰色 */
+  border-radius: 10px;
+  border: 2px solid transparent; /* 周りに余白を作って細く見せる */
+  background-clip: content-box;
+}
+
+/* ホバー時：少し明るくして操作しやすく */
+::-webkit-scrollbar-thumb:hover {
+  background: #8e8877;
+}
+
+/* 角の部分 */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox用の設定 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #6b6659 transparent;
+}
+
+/* 既存のCSSの末尾に追加（任意） */
+select {
+  height: 38px;
+  padding: 0 8px;
+  background: #5a5852;
+  color: #f5f3f0;
+  border: 1px solid #6c6a64;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}

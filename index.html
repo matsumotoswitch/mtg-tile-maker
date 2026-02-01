@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MTG Card Tile Maker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <!-- 左カラム -->
+    <section class="left">
+      <div class="search-panel">
+        <div class="toggle-row">
+          <label><input type="radio" name="match" value="partial" checked /> 部分一致</label>
+          <label><input type="radio" name="match" value="exact" /> 完全一致</label>
+        </div>
+
+        <div class="search-input-group">
+          <input id="searchInput" type="text" placeholder="カード名を入力" />
+          <button id="searchBtn">検索</button>
+        </div>
+      </div>
+
+      <div class="results" id="results">
+        <!-- 検索結果一覧 -->
+      </div>
+    </section>
+
+    <!-- 右カラム -->
+    <section class="right">
+      <div class="settings">
+        <div class="setting-row">
+          <div class="setting">
+            <label>横枚数</label>
+            <input id="columns" type="number" value="5" min="1" />
+          </div>
+      
+          <div class="setting">
+            <label>カード幅(px)</label>
+            <input id="cardWidth" type="number" value="200" min="50" />
+          </div>
+      
+          <div class="setting">
+            <label>カード間隔(px)</label>
+            <input id="gap" type="number" value="10" min="0" />
+          </div>
+        </div>
+
+        <div class="setting-row" style="margin-top: 10px;">
+          <div class="setting">
+            <label>出力画像幅(px)</label>
+            <input id="totalWidth" type="number" value="1240" placeholder="自動(最小)" min="1" />
+          </div>
+
+          <div class="setting">
+            <label>横配置</label>
+            <select id="align">
+              <option value="center" selected>中央揃え</option>
+              <option value="left">左揃え</option>
+              <option value="right">右揃え</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="generate-box">
+          <div id="sizeInfo"></div>
+          <button id="generateBtn">画像生成</button>
+        </div>
+      </div>
+
+      <div class="canvas-area" id="dropArea">
+        <p>ここにカードをドラッグ＆ドロップ</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>
