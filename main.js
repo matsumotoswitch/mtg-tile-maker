@@ -253,6 +253,7 @@ function renderDropPreview() {
 
   if (droppedCards.length === 0) {
     dropArea.innerHTML = '<p style="color:#666; margin-top:20px;">ここにカードをドラッグ＆ドロップ</p>';
+    baseImageSize = null; // カードが空になったら基準サイズをリセット
     return;
   }
 
@@ -260,7 +261,7 @@ function renderDropPreview() {
   const cardWidth = parseInt(document.getElementById("cardWidth").value) || 200;
   const gap = parseInt(document.getElementById("gap").value) || 0;
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
-  const align = document.getElementById("align").value;
+  const align = document.getElementById("align") ? document.getElementById("align").value : "center";
 
   const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
   const finalCanvasWidth = Math.max(contentWidth, userTotalWidth);
@@ -279,49 +280,40 @@ function renderDropPreview() {
   droppedCards.forEach((url, idx) => {
     const card = document.createElement("div");
     card.className = "canvas-card";
-    card.draggable = true; // 並び替えのためにドラッグ可能に
+    card.draggable = true;
     card.style.width = `${cardWidth}px`;
+    card.dataset.index = idx; // インデックスを保持
 
     card.innerHTML = `
-      <img src="${url}" alt="card-${idx}" />
-      <button class="remove-btn" title="削除">×</button>
+      <img src="${url}" alt="card-${idx}" style="pointer-events: none;" />
+      <button class="remove-btn" style="pointer-events: auto;">×</button>
     `;
 
-    // --- 並び替え用イベントリスナー ---
-    
-    // ドラッグ開始: 自分のインデックスを保存
+    // --- 並び替えイベント (カード単位) ---
     card.addEventListener("dragstart", (e) => {
-      e.dataTransfer.setData("text/move-idx", idx);
+      // 並び替えであることを明示するカスタム形式をセット
+      e.dataTransfer.setData("text/reorder-idx", idx);
+      e.dataTransfer.effectAllowed = "move";
       card.style.opacity = "0.4";
-      card.classList.add("moving");
+    });
+
+    card.addEventListener("dragover", (e) => {
+      e.preventDefault(); // ドロップ許可
+      e.dataTransfer.dropEffect = "move";
+    });
+
+    card.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // 親のdropAreaへのドロップを防ぐ
+      
+      const fromIdx = e.dataTransfer.getData("text/reorder-idx");
+      if (fromIdx !== "" && parseInt(fromIdx) !== idx) {
+        moveCard(parseInt(fromIdx), idx);
+      }
     });
 
     card.addEventListener("dragend", () => {
       card.style.opacity = "1";
-      card.classList.remove("moving");
-    });
-
-    // 重なった時: 並び替え可能であることを示す
-    card.addEventListener("dragover", (e) => {
-      e.preventDefault(); // ドロップを許可
-      card.style.transform = "scale(1.05)";
-      card.style.zIndex = "10";
-    });
-
-    card.addEventListener("dragleave", () => {
-      card.style.transform = "scale(1)";
-      card.style.zIndex = "1";
-    });
-
-    // ドロップした時: 配列を入れ替えて再描画
-    card.addEventListener("drop", (e) => {
-      e.preventDefault();
-      e.stopPropagation(); // 親（dropArea）の追加イベントを防ぐ
-      
-      const fromIdx = e.dataTransfer.getData("text/move-idx");
-      if (fromIdx !== "" && parseInt(fromIdx) !== idx) {
-        moveCard(parseInt(fromIdx), idx);
-      }
     });
 
     card.querySelector(".remove-btn").addEventListener("click", (e) => {
@@ -334,6 +326,33 @@ function renderDropPreview() {
 
   dropArea.appendChild(artboard);
 }
+
+// 親要素 (dropArea) のドロップイベントも修正
+dropArea.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropArea.classList.remove("dragover");
+
+  // 1. 新規追加 (application/json)
+  const json = e.dataTransfer.getData("application/json");
+  if (json) {
+    try {
+      const { url, w, h } = JSON.parse(json);
+      if (!baseImageSize) baseImageSize = { w: Number(w), h: Number(h) };
+      droppedCards.push(url);
+      renderDropPreview();
+      updateSizeInfo();
+      return;
+    } catch (err) {}
+  }
+
+  // 2. 新規追加 (text/url 形式)
+  const url = e.dataTransfer.getData("text/url") || e.dataTransfer.getData("text/plain");
+  if (url && url.startsWith("http") && !e.dataTransfer.getData("text/reorder-idx")) {
+    droppedCards.push(url);
+    renderDropPreview();
+    updateSizeInfo();
+  }
+});
 
 function moveCard(from, to) {
   const card = droppedCards.splice(from, 1)[0];
@@ -496,5 +515,6 @@ function updateSizeInfo() {
     });
   }
 });
+
 
 
