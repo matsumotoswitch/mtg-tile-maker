@@ -115,7 +115,7 @@ body {
 }
 
 .setting input[type="number"] {
-  height: 38px;
+  height: 36px;
   width: 128px;
   padding: 0 8px;
   background: #5a5852;
@@ -157,7 +157,7 @@ body {
 }
 
 /* ただし、削除ボタンだけはクリックできるようにする */
-#dropArea . button {
+#dropArea .button {
   pointer-events: auto;
 }
 
@@ -265,12 +265,12 @@ body {
   position: relative;
   width: 100%;
 }
-. img {
+.img {
   width: 100%;
   border-radius: 4px;
   display: block;
 }
-. button {
+.button {
   position: absolute;
   top: 5px;
   right: 5px;
@@ -333,11 +333,6 @@ body {
 #dropArea.dragover {
   border: 1px solid #ffd700;
   background: #32302b !important;
-}
-
-/* カード内の要素がドラッグを邪魔しないようにする */
-.card-item img, .card-overlay, .card-overlay * {
-  pointer-events: none;
 }
 
 .card-footer, .card-link {
@@ -456,7 +451,7 @@ body {
 
 /* 既存のCSSの末尾に追加（任意） */
 select {
-  height: 38px;
+  height: 36px;
   padding: 0 8px;
   background: #5a5852;
   color: #f5f3f0;
@@ -466,9 +461,12 @@ select {
   cursor: pointer;
 }
 
+/* 並び替えをスムーズにする設定 */
 .canvas-card {
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  position: relative;
   cursor: grab;
+  transition: transform 0.1s ease;
+  user-select: none;
 }
 
 .canvas-card:active {
@@ -479,16 +477,6 @@ select {
   border: 2px solid #ffd700;
   border-radius: 4px;
 }
-/* 並び替えをスムーズにする設定 */
-.canvas-card {
-  position: relative;
-  cursor: grab;
-  transition: transform 0.1s ease;
-}
-
-.canvas-card:active {
-  cursor: grabbing;
-}
 
 /* 重要：画像自体がマウスイベントを奪わないようにする */
 .canvas-card img {
@@ -498,18 +486,6 @@ select {
 /* 削除ボタンは触れるようにする */
 .canvas-card .remove-btn {
   pointer-events: auto;
-}
-
-/* カード内の要素がイベントを遮らないようにする */
-.canvas-card {
-  cursor: grab;
-  user-select: none;
-}
-.canvas-card img {
-  pointer-events: none; /* 画像がドラッグの邪魔をしないように */
-}
-.canvas-card .remove-btn {
-  pointer-events: auto; /* ボタンは触れるように */
 }
 
 img { pointer-events: none; }
