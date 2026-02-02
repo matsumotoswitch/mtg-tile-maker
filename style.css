@@ -465,3 +465,17 @@ select {
   outline: none;
   cursor: pointer;
 }
+
+.canvas-card {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  cursor: grab;
+}
+
+.canvas-card:active {
+  cursor: grabbing;
+}
+
+.canvas-card.moving {
+  border: 2px solid #ffd700;
+  border-radius: 4px;
+}
