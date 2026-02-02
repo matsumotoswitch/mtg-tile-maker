@@ -512,3 +512,4 @@ select {
   pointer-events: auto; /* ボタンは触れるように */
 }
 
+img { pointer-events: none; }
