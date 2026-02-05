@@ -33,20 +33,16 @@ document.getElementById("searchBtn").addEventListener("click", async () => {
   if (match === "exact") q = `!${query}`;
   q = `${q} lang:${lang}`;
 
-  // unique=prints で版違いを取得、order=name でカード名順
   let url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(q)}&unique=prints&order=name`;
 
   results.innerHTML = "";
 
   try {
     let allCards = [];
-
     while (url) {
       const res = await fetch(url);
       const data = await res.json();
-
       if (!data.data || data.data.length === 0) break;
-
       allCards = allCards.concat(data.data);
       url = data.has_more ? data.next_page : null;
     }
@@ -56,12 +52,9 @@ document.getElementById("searchBtn").addEventListener("click", async () => {
       return;
     }
 
-    // 同名カードを発売日順にソート
     allCards.sort((a, b) => {
       if (a.name < b.name) return -1;
       if (a.name > b.name) return 1;
-
-      // 同名なら発売日順
       const da = new Date(a.released_at);
       const db = new Date(b.released_at);
       return da - db;
@@ -70,8 +63,6 @@ document.getElementById("searchBtn").addEventListener("click", async () => {
     allCards.forEach(card => {
       addCardResult(card);
     });
-
-
   } catch (e) {
     results.innerHTML = "<p>検索に失敗しました</p>";
   }
@@ -87,13 +78,11 @@ function addCardResult(card) {
 
   el.innerHTML = `
     <img src="${url}" alt="${card.name}" crossorigin="anonymous" />
-
     <div class="card-overlay">
       <div class="name">${card.name}</div>
       <div class="released">${card.released_at}</div>
       <div class="size"></div>
     </div>
-
     <div class="card-footer">
       <a class="card-link" href="${card.scryfall_uri}" target="_blank" title="Scryfallで詳細を見る">🌐</a>
       <div class="langArea"></div>
@@ -102,32 +91,23 @@ function addCardResult(card) {
 
   results.appendChild(el);
 
-  // 画像サイズ表示
   const img = el.querySelector("img");
   img.onload = () => {
     const w = img.naturalWidth;
     const h = img.naturalHeight;
-
     el.dataset.w = w;
     el.dataset.h = h;
     el.querySelector(".size").textContent = `${w} × ${h}px`;
   };
 
-  // ドラッグ
   el.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("text/url", url);
-    
-    e.dataTransfer.setData(
-      "application/json",
-      JSON.stringify({
-        url,
-        w: el.dataset.w,
-        h: el.dataset.h
-      })
-    );
+    e.dataTransfer.setData("application/json", JSON.stringify({
+      url,
+      w: el.dataset.w,
+      h: el.dataset.h
+    }));
   });
 
-  // 言語取得
   fetchAllPrints(card.prints_search_uri)
     .then(printCards => {
       const langs = {};
@@ -146,7 +126,6 @@ function addCardResult(card) {
 async function fetchAllPrints(url) {
   let all = [];
   let next = url;
-
   while (next) {
     const res = await fetch(next);
     const data = await res.json();
@@ -154,43 +133,20 @@ async function fetchAllPrints(url) {
     all = all.concat(data.data);
     next = data.has_more ? data.next_page : null;
   }
-
   return all;
 }
 
 function renderLangButtons(el, langs, initialLang) {
   const langArea = el.querySelector(".langArea");
   langArea.innerHTML = "";
-
-  const flagMap = {
-    ja: "JP",
-    en: "US",
-    fr: "FR",
-    de: "DE",
-    es: "ES",
-    it: "IT",
-    pt: "PT",
-    ru: "RU",
-    ko: "KR",
-    zh: "CN",
-  };
-
+  const flagMap = { ja: "JP", en: "US", fr: "FR", de: "DE", es: "ES", it: "IT", pt: "PT", ru: "RU", ko: "KR", zh: "CN" };
   const keys = Object.keys(langs);
-  if (keys.length === 0) {
-    langArea.textContent = "言語なし";
-    return;
-  }
+  if (keys.length === 0) return;
 
-  // 初期表示言語
   let currentLang = initialLang && langs[initialLang] ? initialLang : keys[0];
-
   const updateHighlight = () => {
     langArea.querySelectorAll(".langBtn").forEach(btn => {
-      if (btn.dataset.lang === currentLang) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
-      }
+      btn.classList.toggle("active", btn.dataset.lang === currentLang);
     });
   };
 
@@ -199,23 +155,17 @@ function renderLangButtons(el, langs, initialLang) {
     btn.className = "langBtn";
     btn.textContent = flagMap[lang] || lang.toUpperCase();
     btn.dataset.lang = lang;
-    btn.dataset.url = langs[lang];
-
     btn.addEventListener("click", () => {
-      const imgEl = el.querySelector("img");
-      imgEl.src = btn.dataset.url;
+      el.querySelector("img").src = langs[lang];
       currentLang = lang;
       updateHighlight();
     });
-
     langArea.appendChild(btn);
   });
-
-  // 初期強調
   updateHighlight();
 }
 
-// ドロップ領域（並び替え＋削除）
+// --- ドロップエリアの制御 (重複防止のため1つに統合) ---
 dropArea.addEventListener("dragover", (e) => {
   e.preventDefault();
   dropArea.classList.add("dragover");
@@ -229,16 +179,9 @@ dropArea.addEventListener("drop", (e) => {
   e.preventDefault();
   dropArea.classList.remove("dragover");
 
-  // もしカード（artboard内）の上でドロップされたなら、この親イベントは無視する
-  // (後述の card.drop 内で stopPropagation するため、通常ここは呼ばれません)
-    
-  // 並び替えのデータがある場合は新規追加処理を行わない
+  // 並び替えのデータがある場合はここでは何もしない
   if (e.dataTransfer.getData("text/reorder-idx")) return;
 
-  handleNewCardDrop(e);
-});
-
-function handleNewCardDrop(e) {
   const json = e.dataTransfer.getData("application/json");
   if (json) {
     try {
@@ -249,118 +192,87 @@ function handleNewCardDrop(e) {
       updateSizeInfo();
     } catch (err) { console.error(err); }
   }
-}
-
-// 生成フィールドの並び替え（ドロップで順序入れ替え）
-function renderDropPreview() {
-    dropArea.innerHTML = "";
-    if (droppedCards.length === 0) {
-        dropArea.innerHTML = '<p style="color:#666; margin-top:20px;">ここにカードをドラッグ＆ドロップ</p>';
-        baseImageSize = null;
-        return;
-    }
-
-    // (中略：設定値の取得などは既存のまま)
-    const columns = parseInt(document.getElementById("columns").value) || 1;
-    const cardWidth = parseInt(document.getElementById("cardWidth").value) || 200;
-    const gap = parseInt(document.getElementById("gap").value) || 0;
-    const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
-    const align = document.getElementById("align") ? document.getElementById("align").value : "center";
-    const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
-    const finalCanvasWidth = Math.max(contentWidth, userTotalWidth);
-
-    const artboard = document.createElement("div");
-    artboard.className = "artboard";
-    artboard.style.width = `${finalCanvasWidth}px`;
-    artboard.style.display = "grid";
-    artboard.style.gridTemplateColumns = `repeat(${columns}, ${cardWidth}px)`;
-    artboard.style.gap = `${gap}px`;
-    
-    const gridAlign = align === "left" ? "start" : align === "right" ? "end" : "center";
-    artboard.style.justifyContent = gridAlign;
-    dropArea.style.alignItems = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
-
-    droppedCards.forEach((url, idx) => {
-        const card = document.createElement("div");
-        card.className = "canvas-card";
-        card.draggable = true;
-        card.style.width = `${cardWidth}px`;
-
-        card.innerHTML = `
-            <img src="${url}" alt="card-${idx}" style="pointer-events: none; width:100%; display:block;" />
-            <button class="remove-btn" style="pointer-events: auto;">×</button>
-        `;
-
-        // ドラッグ開始
-        card.addEventListener("dragstart", (e) => {
-            e.dataTransfer.setData("text/reorder-idx", idx);
-            card.style.opacity = "0.4";
-        });
-
-        card.addEventListener("dragover", (e) => e.preventDefault());
-
-        // カードの上でドロップされた時
-        card.addEventListener("drop", (e) => {
-            e.preventDefault();
-            e.stopPropagation(); // ★これが最重要。親のdropAreaに「追加」させない。
-
-            const fromIdx = e.dataTransfer.getData("text/reorder-idx");
-            if (fromIdx !== "" && parseInt(fromIdx) !== idx) {
-                // 並び替え実行
-                const movedItem = droppedCards.splice(parseInt(fromIdx), 1)[0];
-                droppedCards.splice(idx, 0, movedItem);
-                renderDropPreview();
-                updateSizeInfo();
-            } else if (!fromIdx) {
-                // カードの上に「新しいカード」を落とした場合、その位置に挿入
-                const json = e.dataTransfer.getData("application/json");
-                if (json) {
-                    const { url } = JSON.parse(json);
-                    droppedCards.splice(idx, 0, url);
-                    renderDropPreview();
-                    updateSizeInfo();
-                }
-            }
-        });
-
-        card.addEventListener("dragend", () => card.style.opacity = "1");
-        card.querySelector(".remove-btn").onclick = () => {
-            droppedCards.splice(idx, 1);
-            renderDropPreview();
-            updateSizeInfo();
-        };
-
-        artboard.appendChild(card);
-    });
-    dropArea.appendChild(artboard);
-}
-
-// 親要素 (dropArea) のドロップイベントも修正
-dropArea.addEventListener("drop", (e) => {
-  e.preventDefault();
-  dropArea.classList.remove("dragover");
-
-  // 1. 新規追加 (application/json)
-  const json = e.dataTransfer.getData("application/json");
-  if (json) {
-    try {
-      const { url, w, h } = JSON.parse(json);
-      if (!baseImageSize) baseImageSize = { w: Number(w), h: Number(h) };
-      droppedCards.push(url);
-      renderDropPreview();
-      updateSizeInfo();
-      return;
-    } catch (err) {}
-  }
-
-  // 2. 新規追加 (text/url 形式)
-  const url = e.dataTransfer.getData("text/url") || e.dataTransfer.getData("text/plain");
-  if (url && url.startsWith("http") && !e.dataTransfer.getData("text/reorder-idx")) {
-    droppedCards.push(url);
-    renderDropPreview();
-    updateSizeInfo();
-  }
 });
+
+function renderDropPreview() {
+  dropArea.innerHTML = "";
+  if (droppedCards.length === 0) {
+    dropArea.innerHTML = '<p style="color:#666; margin-top:20px;">ここにカードをドラッグ＆ドロップ</p>';
+    baseImageSize = null;
+    return;
+  }
+
+  const columns = parseInt(document.getElementById("columns").value) || 1;
+  const cardWidth = parseInt(document.getElementById("cardWidth").value) || 200;
+  const gap = parseInt(document.getElementById("gap").value) || 0;
+  const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
+  const align = document.getElementById("align") ? document.getElementById("align").value : "center";
+
+  const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
+  const finalCanvasWidth = Math.max(contentWidth, userTotalWidth);
+
+  const artboard = document.createElement("div");
+  artboard.className = "artboard";
+  artboard.style.width = `${finalCanvasWidth}px`;
+  artboard.style.display = "grid";
+  artboard.style.gridTemplateColumns = `repeat(${columns}, ${cardWidth}px)`;
+  artboard.style.gap = `${gap}px`;
+  
+  const gridAlign = align === "left" ? "start" : align === "right" ? "end" : "center";
+  artboard.style.justifyContent = gridAlign;
+  dropArea.style.alignItems = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+
+  droppedCards.forEach((url, idx) => {
+    const card = document.createElement("div");
+    card.className = "canvas-card";
+    card.draggable = true;
+    card.style.width = `${cardWidth}px`;
+
+    card.innerHTML = `
+      <img src="${url}" alt="card-${idx}" style="pointer-events: none; width:100%; display:block;" />
+      <button class="remove-btn">×</button>
+    `;
+
+    card.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/reorder-idx", idx);
+      card.style.opacity = "0.4";
+    });
+
+    card.addEventListener("dragover", (e) => e.preventDefault());
+
+    card.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // 親のdropAreaへのイベント伝播を止める（重要！）
+
+      const fromIdx = e.dataTransfer.getData("text/reorder-idx");
+      if (fromIdx !== "" && parseInt(fromIdx) !== idx) {
+        // 並び替え
+        const movedItem = droppedCards.splice(parseInt(fromIdx), 1)[0];
+        droppedCards.splice(idx, 0, movedItem);
+        renderDropPreview();
+        updateSizeInfo();
+      } else if (!fromIdx) {
+        // 新規カードを特定の場所に挿入
+        const json = e.dataTransfer.getData("application/json");
+        if (json) {
+          const { url } = JSON.parse(json);
+          droppedCards.splice(idx, 0, url);
+          renderDropPreview();
+          updateSizeInfo();
+        }
+      }
+    });
+
+    card.addEventListener("dragend", () => card.style.opacity = "1");
+    card.querySelector(".remove-btn").onclick = (e) => {
+      e.stopPropagation();
+      removeCard(idx);
+    };
+
+    artboard.appendChild(card);
+  });
+  dropArea.appendChild(artboard);
+}
 
 function moveCard(from, to) {
   const card = droppedCards.splice(from, 1)[0];
@@ -375,12 +287,9 @@ function removeCard(idx) {
   updateSizeInfo();
 }
 
-// 画像生成ボタンの実装
+// 画像生成ボタン
 document.getElementById("generateBtn").addEventListener("click", async () => {
-  if (droppedCards.length === 0) {
-    alert("カードをドロップしてください");
-    return;
-  }
+  if (droppedCards.length === 0) return;
 
   const columns = parseInt(document.getElementById("columns").value) || 1;
   const cardWidth = parseInt(document.getElementById("cardWidth").value) || 200;
@@ -388,41 +297,29 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
   const align = document.getElementById("align").value;
 
-  // 全画像を読み込み
   const imgs = await Promise.all(droppedCards.map(url => loadImage(url)));
-
-  // 画像1枚の比率から高さを計算
-  const firstImg = imgs[0];
-  const cardHeight = Math.round((cardWidth * firstImg.naturalHeight) / firstImg.naturalWidth);
+  const cardHeight = Math.round((cardWidth * imgs[0].naturalHeight) / imgs[0].naturalWidth);
   const rows = Math.ceil(imgs.length / columns);
-  
-  // コンテンツ自体のサイズ
   const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
   const contentHeight = (rows * cardHeight) + ((rows - 1) * gap);
-
-  // キャンバス幅の決定
   const canvasWidth = Math.max(contentWidth, userTotalWidth);
 
-  // キャンバス作成（背景はデフォルトで透明）
   const canvas = document.createElement("canvas");
   canvas.width = canvasWidth;
   canvas.height = contentHeight;
   const ctx = canvas.getContext("2d");
 
-  // 配置オフセット計算
   let offsetX = 0;
   if (align === "center") offsetX = (canvasWidth - contentWidth) / 2;
   else if (align === "right") offsetX = canvasWidth - contentWidth;
 
-  // 描画処理
   imgs.forEach((img, i) => {
     const r = Math.floor(i / columns);
     const c = i % columns;
     const x = offsetX + c * (cardWidth + gap);
     const y = r * (cardHeight + gap);
 
-    // きれいな角丸を表現するためのクリッピング
-    const radius = Math.round(cardWidth * 0.045); // 一般的なMTGカードの角丸比率
+    const radius = Math.round(cardWidth * 0.045);
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -436,22 +333,13 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
     ctx.quadraticCurveTo(x, y, x + radius, y);
     ctx.closePath();
     ctx.clip();
-    
     ctx.drawImage(img, x, y, cardWidth, cardHeight);
     ctx.restore();
   });
 
-  // ファイル名の作成 (yyyymmddHHMMSSsss)
   const now = new Date();
-  const timestamp = now.getFullYear().toString() +
-    (now.getMonth() + 1).toString().padStart(2, '0') +
-    now.getDate().toString().padStart(2, '0') +
-    now.getHours().toString().padStart(2, '0') +
-    now.getMinutes().toString().padStart(2, '0') +
-    now.getSeconds().toString().padStart(2, '0') +
-    now.getMilliseconds().toString().padStart(3, '0');
+  const timestamp = now.getFullYear().toString() + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0') + now.getHours().toString().padStart(2, '0') + now.getMinutes().toString().padStart(2, '0') + now.getSeconds().toString().padStart(2, '0') + now.getMilliseconds().toString().padStart(3, '0');
 
-  // ダウンロード実行
   const link = document.createElement("a");
   link.href = canvas.toDataURL("image/png");
   link.download = `${timestamp}.png`;
@@ -461,69 +349,41 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
 function loadImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    // キャッシュ回避のためにURLにユニークな値を付与
     const cacheBuster = (url.indexOf('?') === -1 ? '?' : '&') + 't=' + new Date().getTime();
-    
-    img.crossOrigin = "anonymous"; // これがCanvas描画に必須
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("画像読み込み失敗: " + url));
-    img.src = url + cacheBuster; 
+    img.onerror = () => reject(new Error("読み込み失敗"));
+    img.src = url + cacheBuster;
   });
 }
 
-// サイズ情報更新関数
 function updateSizeInfo() {
   const sizeInfo = document.getElementById("sizeInfo");
-
   if (droppedCards.length === 0) {
     sizeInfo.textContent = "画像サイズ: ―";
     return;
   }
-
   const columns = parseInt(document.getElementById("columns").value);
   const cardWidth = parseInt(document.getElementById("cardWidth").value);
   const gap = parseInt(document.getElementById("gap").value);
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value);
 
-  if (!baseImageSize) {
-    sizeInfo.textContent = "画像サイズ: 取得中…";
-    return;
-  }
+  if (!baseImageSize) return;
 
-  const cardHeight = Math.round(
-    (cardWidth * baseImageSize.h) / baseImageSize.w
-  );
-
+  const cardHeight = Math.round((cardWidth * baseImageSize.h) / baseImageSize.w);
   const rows = Math.ceil(droppedCards.length / columns);
-
-  // コンテンツ幅
   const contentWidth = columns * cardWidth + (columns - 1) * gap;
   const contentHeight = rows * cardHeight + (rows - 1) * gap;
-
-  // 最終出力幅
-  let finalWidth = contentWidth;
-  if (!isNaN(userTotalWidth) && userTotalWidth > contentWidth) {
-    finalWidth = userTotalWidth;
-  }
-
+  let finalWidth = Math.max(contentWidth, userTotalWidth);
   sizeInfo.textContent = `出力予定: ${finalWidth} × ${contentHeight}px`;
 }
 
-// イベントリスナーの登録（対象IDを配列に追加）
 ["columns", "cardWidth", "gap", "totalWidth", "align"].forEach(id => {
   const el = document.getElementById(id);
   if (el) {
     el.addEventListener("input", () => {
-      // プレビューは "totalWidth" などの変更時にはカード再描画不要かもしれないが、
-      // 既存ロジックに合わせて renderDropPreview も呼んでおく（配置プレビューは今のところ簡易的なので）
-      if (id !== "totalWidth" && id !== "align") {
-          renderDropPreview();
-      }
+      if (id !== "totalWidth" && id !== "align") renderDropPreview();
       updateSizeInfo();
     });
   }
 });
-
-
-
-
