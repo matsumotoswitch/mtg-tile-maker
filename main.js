@@ -217,10 +217,25 @@ function renderDropPreview() {
   artboard.style.display = "grid";
   artboard.style.gridTemplateColumns = `repeat(${columns}, ${cardWidth}px)`;
   artboard.style.gap = `${gap}px`;
-  
-  const gridAlign = align === "left" ? "start" : align === "right" ? "end" : "center";
-  artboard.style.justifyContent = gridAlign;
+
+  // 横配置の取得と反映
+  const alignSelect = document.getElementById("align");
+  const align = alignSelect ? alignSelect.value : "center";
+
+  // 1. アートボード内のカードの並び
+  // left -> start, right -> end, center -> center
+  const gridJustify = align === "left" ? "start" : align === "right" ? "end" : "center";
+  artboard.style.justifyContent = gridJustify;
+
+  // 2. 親要素(dropArea)の中でのアートボード自体の位置
+  // これをセットしないと、アートボードが常に左側に寄ってしまいます
+  dropArea.style.display = "flex";
+  dropArea.style.flexDirection = "column";
   dropArea.style.alignItems = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+
+  // 念のため背景色や枠線のスタイルもここで再確認
+  artboard.style.border = "1px solid #666";
+  artboard.style.background = "#1a1a1a";
 
   droppedCards.forEach((url, idx) => {
     const card = document.createElement("div");
@@ -387,3 +402,4 @@ function updateSizeInfo() {
     });
   }
 });
+
