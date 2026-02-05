@@ -205,7 +205,7 @@ function renderDropPreview() {
   const alignSelect = document.getElementById("align");
   const align = alignSelect ? alignSelect.value : "center";
 
-  // コンテンツそのものの計算幅
+  // コンテンツそのものの計算幅（横枚数 × カード幅 + 間隔）
   const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
   
   // 出力画像幅の決定
@@ -215,37 +215,38 @@ function renderDropPreview() {
   const artboard = document.createElement("div");
   artboard.className = "artboard";
   
-  // 枠の幅を厳密に固定
-  artboard.style.display = "grid";
+  // 1. 枠の幅を「出力画像幅」に完全に固定
   artboard.style.width = finalCanvasWidth + "px";
   artboard.style.minWidth = finalCanvasWidth + "px";
-  artboard.style.position = "relative"; // 配置の基準用
   
-  // グリッド列の定義
-  artboard.style.gridTemplateColumns = `repeat(${columns}, ${cardWidth}px)`;
-  artboard.style.gap = gap + "px";
+  // 2. 配置を Flexbox に切り替え
+  artboard.style.display = "flex";
+  artboard.style.flexWrap = "wrap";
+  artboard.style.alignContent = "flex-start";
   
-  // 横配置プロパティ
-  const gridJustify = align === "left" ? "start" : align === "right" ? "end" : "center";
-  artboard.style.justifyContent = gridJustify;
+  // 3. 横配置の設定（ここが1枚の時でも確実に効きます）
+  const flexJustify = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+  artboard.style.justifyContent = flexJustify;
 
-  // デザイン調整
+  // 4. アートボードの見た目
   artboard.style.border = "1px solid #666";
   artboard.style.background = "#1a1a1a";
   artboard.style.boxSizing = "border-box";
+  artboard.style.padding = "0";
 
-  // 外枠の中での中央配置
+  // dropArea(外枠)の中では常に中央に表示
   dropArea.style.display = "flex";
   dropArea.style.justifyContent = "center";
   dropArea.style.alignItems = "flex-start";
 
-  // 【重要】透明なスペーサーの挿入
-  // これにより、カードが1枚でもGridが縮まず、finalCanvasWidthまで広がります
-  const spacer = document.createElement("div");
-  spacer.style.gridColumn = `1 / span ${columns}`;
-  spacer.style.height = "0";
-  spacer.style.width = "100%";
-  artboard.appendChild(spacer);
+  // 【重要】カードの親として、指定された列数で折り返すためのコンテナ（内枠）を作成
+  const innerContainer = document.createElement("div");
+  innerContainer.style.display = "grid";
+  innerContainer.style.gridTemplateColumns = `repeat(${columns}, ${cardWidth}px)`;
+  innerContainer.style.gap = gap + "px";
+  innerContainer.style.width = contentWidth + "px"; // コンテンツ幅に固定
+  
+  artboard.appendChild(innerContainer);
 
   droppedCards.forEach((url, idx) => {
     const card = document.createElement("div");
@@ -258,7 +259,7 @@ function renderDropPreview() {
       <button class="remove-btn">×</button>
     `;
 
-    // 並び替え・削除イベント（ロジックは維持）
+    // 並び替え・追加ロジックは既存のものをそのまま利用
     card.addEventListener("dragstart", (e) => {
       e.dataTransfer.setData("text/reorder-idx", idx);
       card.style.opacity = "0.4";
@@ -289,7 +290,7 @@ function renderDropPreview() {
       removeCard(idx);
     };
 
-    artboard.appendChild(card);
+    innerContainer.appendChild(card);
   });
   
   dropArea.appendChild(artboard);
@@ -402,6 +403,7 @@ function updateSizeInfo() {
     });
   }
 });
+
 
 
 
