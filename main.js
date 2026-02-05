@@ -206,7 +206,7 @@ function renderDropPreview() {
   const cardWidth = parseInt(document.getElementById("cardWidth").value) || 200;
   const gap = parseInt(document.getElementById("gap").value) || 0;
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
-  const align = document.getElementById("align") ? document.getElementById("align").value : "center";
+  //const align = document.getElementById("align") ? document.getElementById("align").value : "center";
 
   const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
   const finalCanvasWidth = Math.max(contentWidth, userTotalWidth);
@@ -402,4 +402,5 @@ function updateSizeInfo() {
     });
   }
 });
+
 
