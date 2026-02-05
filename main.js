@@ -24,17 +24,14 @@ document.getElementById("searchBtn").addEventListener("click", async () => {
   const match = document.querySelector('input[name="match"]:checked').value;
 
   baseImageSize = null;
-
   if (!query) return;
 
   const lang = detectLang(query);
-
   let q = query;
   if (match === "exact") q = `!${query}`;
   q = `${q} lang:${lang}`;
 
   let url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(q)}&unique=prints&order=name`;
-
   results.innerHTML = "";
 
   try {
@@ -165,7 +162,7 @@ function renderLangButtons(el, langs, initialLang) {
   updateHighlight();
 }
 
-// --- ドロップエリアの制御 (重複防止のため1つに統合) ---
+// ドロップエリア
 dropArea.addEventListener("dragover", (e) => {
   e.preventDefault();
   dropArea.classList.add("dragover");
@@ -178,8 +175,6 @@ dropArea.addEventListener("dragleave", () => {
 dropArea.addEventListener("drop", (e) => {
   e.preventDefault();
   dropArea.classList.remove("dragover");
-
-  // 並び替えのデータがある場合はここでは何もしない
   if (e.dataTransfer.getData("text/reorder-idx")) return;
 
   const json = e.dataTransfer.getData("application/json");
@@ -206,10 +201,18 @@ function renderDropPreview() {
   const cardWidth = parseInt(document.getElementById("cardWidth").value) || 200;
   const gap = parseInt(document.getElementById("gap").value) || 0;
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
-  const align = document.getElementById("align") ? document.getElementById("align").value : "center";
+  
+  // 横配置の設定を取得
+  const alignSelect = document.getElementById("align");
+  const align = alignSelect ? alignSelect.value : "center";
 
   const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
   const finalCanvasWidth = Math.max(contentWidth, userTotalWidth);
+
+  // 1. 親(dropArea)の中でアートボードをどう配置するか
+  dropArea.style.display = "flex";
+  dropArea.style.flexDirection = "column";
+  dropArea.style.alignItems = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
 
   const artboard = document.createElement("div");
   artboard.className = "artboard";
@@ -217,23 +220,12 @@ function renderDropPreview() {
   artboard.style.display = "grid";
   artboard.style.gridTemplateColumns = `repeat(${columns}, ${cardWidth}px)`;
   artboard.style.gap = `${gap}px`;
-
-  // 横配置の取得と反映
-  const alignSelect = document.getElementById("align");
-  //const align = alignSelect ? alignSelect.value : "center";
-
-  // 1. アートボード内のカードの並び
-  // left -> start, right -> end, center -> center
+  
+  // 2. アートボード(枠)の中でカードをどう寄せるか
   const gridJustify = align === "left" ? "start" : align === "right" ? "end" : "center";
   artboard.style.justifyContent = gridJustify;
 
-  // 2. 親要素(dropArea)の中でのアートボード自体の位置
-  // これをセットしないと、アートボードが常に左側に寄ってしまいます
-  dropArea.style.display = "flex";
-  dropArea.style.flexDirection = "column";
-  dropArea.style.alignItems = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
-
-  // 念のため背景色や枠線のスタイルもここで再確認
+  // アートボードのスタイル
   artboard.style.border = "1px solid #666";
   artboard.style.background = "#1a1a1a";
 
@@ -257,17 +249,15 @@ function renderDropPreview() {
 
     card.addEventListener("drop", (e) => {
       e.preventDefault();
-      e.stopPropagation(); // 親のdropAreaへのイベント伝播を止める（重要！）
+      e.stopPropagation();
 
       const fromIdx = e.dataTransfer.getData("text/reorder-idx");
       if (fromIdx !== "" && parseInt(fromIdx) !== idx) {
-        // 並び替え
         const movedItem = droppedCards.splice(parseInt(fromIdx), 1)[0];
         droppedCards.splice(idx, 0, movedItem);
         renderDropPreview();
         updateSizeInfo();
       } else if (!fromIdx) {
-        // 新規カードを特定の場所に挿入
         const json = e.dataTransfer.getData("application/json");
         if (json) {
           const { url } = JSON.parse(json);
@@ -289,20 +279,13 @@ function renderDropPreview() {
   dropArea.appendChild(artboard);
 }
 
-function moveCard(from, to) {
-  const card = droppedCards.splice(from, 1)[0];
-  droppedCards.splice(to, 0, card);
-  renderDropPreview();
-  updateSizeInfo();
-}
-
 function removeCard(idx) {
   droppedCards.splice(idx, 1);
   renderDropPreview();
   updateSizeInfo();
 }
 
-// 画像生成ボタン
+// 画像生成
 document.getElementById("generateBtn").addEventListener("click", async () => {
   if (droppedCards.length === 0) return;
 
@@ -382,7 +365,6 @@ function updateSizeInfo() {
   const cardWidth = parseInt(document.getElementById("cardWidth").value);
   const gap = parseInt(document.getElementById("gap").value);
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value);
-
   if (!baseImageSize) return;
 
   const cardHeight = Math.round((cardWidth * baseImageSize.h) / baseImageSize.w);
@@ -393,15 +375,14 @@ function updateSizeInfo() {
   sizeInfo.textContent = `出力予定: ${finalWidth} × ${contentHeight}px`;
 }
 
+// --- 修正箇所：すべての設定変更でプレビューを更新する ---
 ["columns", "cardWidth", "gap", "totalWidth", "align"].forEach(id => {
   const el = document.getElementById(id);
   if (el) {
+    // どんな変更があっても renderDropPreview() を実行するように修正
     el.addEventListener("input", () => {
-      if (id !== "totalWidth" && id !== "align") renderDropPreview();
+      renderDropPreview(); 
       updateSizeInfo();
     });
   }
 });
-
-
-
