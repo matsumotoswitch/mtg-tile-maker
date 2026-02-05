@@ -202,32 +202,40 @@ function renderDropPreview() {
   const gap = parseInt(document.getElementById("gap").value) || 0;
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
   
-  // 横配置の設定を取得
   const alignSelect = document.getElementById("align");
   const align = alignSelect ? alignSelect.value : "center";
 
+  // コンテンツ自体の幅（カード枚数に基づく最小幅）
   const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
+  
+  // 【重要】出力画像幅を決定（設定値がコンテンツより小さければコンテンツ幅に合わせる）
   const finalCanvasWidth = Math.max(contentWidth, userTotalWidth);
 
-  // 1. 親(dropArea)の中でアートボードをどう配置するか
+  // 外枠(dropArea)の中でアートボードを中央に配置（UIとしての見栄え）
   dropArea.style.display = "flex";
   dropArea.style.flexDirection = "column";
-  dropArea.style.alignItems = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+  dropArea.style.alignItems = "center"; 
 
   const artboard = document.createElement("div");
   artboard.className = "artboard";
+  
+  // アートボードの幅を「出力画像幅」に固定
   artboard.style.width = `${finalCanvasWidth}px`;
+  artboard.style.minWidth = `${finalCanvasWidth}px`; // 幅を強制
+  
   artboard.style.display = "grid";
   artboard.style.gridTemplateColumns = `repeat(${columns}, ${cardWidth}px)`;
   artboard.style.gap = `${gap}px`;
   
-  // 2. アートボード(枠)の中でカードをどう寄せるか
+  // 横配置の設定を Grid の justify-content で反映
   const gridJustify = align === "left" ? "start" : align === "right" ? "end" : "center";
   artboard.style.justifyContent = gridJustify;
 
-  // アートボードのスタイル
+  // 枠線のデザイン
   artboard.style.border = "1px solid #666";
   artboard.style.background = "#1a1a1a";
+  artboard.style.padding = "0"; // 余白は設定値（gap）のみで管理
+  artboard.style.boxSizing = "content-box";
 
   droppedCards.forEach((url, idx) => {
     const card = document.createElement("div");
@@ -240,6 +248,7 @@ function renderDropPreview() {
       <button class="remove-btn">×</button>
     `;
 
+    // 並び替えイベント
     card.addEventListener("dragstart", (e) => {
       e.dataTransfer.setData("text/reorder-idx", idx);
       card.style.opacity = "0.4";
@@ -386,3 +395,4 @@ function updateSizeInfo() {
     });
   }
 });
+
