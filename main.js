@@ -48,38 +48,100 @@ document.getElementById("searchBtn").addEventListener("click", async () => {
     }
 
     allCards.forEach(card => {
-      const imgUrl = getCardImageUrl(card);
-      if (!imgUrl) return;
-
-      const el = document.createElement("div");
-      el.className = "card-item";
-      el.draggable = true;
-      el.innerHTML = `
-        <img src="${imgUrl}" crossorigin="anonymous" style="width:100%; display:block; pointer-events:none;" />
-        <div class="card-overlay">
-          <div class="name">${card.name}</div>
-          <div class="size"></div>
-        </div>
-      `;
-      results.appendChild(el);
-
-      const img = el.querySelector("img");
-      img.onload = () => {
-        el.dataset.w = img.naturalWidth;
-        el.dataset.h = img.naturalHeight;
-        el.querySelector(".size").textContent = `${img.naturalWidth}×${img.naturalHeight}px`;
-      };
-
-      el.addEventListener("dragstart", (e) => {
-        e.dataTransfer.setData("application/json", JSON.stringify({
-          url: imgUrl, w: el.dataset.w, h: el.dataset.h
-        }));
-      });
+      addCardResult(card); // 整理された関数を呼び出す
     });
   } catch (e) {
     results.innerHTML = "<p>検索エラーが発生しました</p>";
   }
 });
+
+// 検索結果のカードを生成する関数
+function addCardResult(card) {
+  const imgUrl = getCardImageUrl(card);
+  if (!imgUrl) return;
+
+  const el = document.createElement("div");
+  el.className = "card-item";
+  el.draggable = true;
+  el.innerHTML = `
+    <img src="${imgUrl}" crossorigin="anonymous" style="width:100%; display:block; pointer-events:none;" />
+    <div class="card-overlay">
+      <div class="name">${card.name}</div>
+      <div class="size"></div>
+    </div>
+    <div class="card-footer">
+      <a class="card-link" href="${card.scryfall_uri}" target="_blank" title="Scryfallで詳細を見る">🌐</a>
+      <div class="langArea"></div>
+    </div>
+  `;
+  results.appendChild(el);
+
+  const img = el.querySelector("img");
+  img.onload = () => {
+    el.dataset.w = img.naturalWidth;
+    el.dataset.h = img.naturalHeight;
+    el.querySelector(".size").textContent = `${img.naturalWidth}×${img.naturalHeight}px`;
+  };
+
+  el.addEventListener("dragstart", (e) => {
+    // 現在の img.src (言語切り替え後も考慮) を渡す
+    e.dataTransfer.setData("application/json", JSON.stringify({
+      url: img.src, w: el.dataset.w, h: el.dataset.h
+    }));
+  });
+
+  // 他の言語版を取得してボタンを生成
+  fetchAllPrints(card.prints_search_uri).then(printCards => {
+    const langs = {};
+    printCards.forEach(p => {
+      const pUrl = getCardImageUrl(p);
+      if (pUrl) langs[p.lang] = pUrl;
+    });
+    renderLangButtons(el, langs, card.lang || "en");
+  });
+}
+
+async function fetchAllPrints(url) {
+  let all = [];
+  let next = url;
+  while (next) {
+    const res = await fetch(next);
+    const data = await res.json();
+    if (!data.data) break;
+    all = all.concat(data.data);
+    next = data.has_more ? data.next_page : null;
+  }
+  return all;
+}
+
+function renderLangButtons(el, langs, initialLang) {
+  const langArea = el.querySelector(".langArea");
+  const flagMap = { ja: "JP", en: "US", fr: "FR", de: "DE", es: "ES", it: "IT", pt: "PT", ru: "RU", ko: "KR", zh: "CN" };
+  const keys = Object.keys(langs);
+  if (keys.length === 0) return;
+
+  let currentLang = initialLang && langs[initialLang] ? initialLang : keys[0];
+  const updateHighlight = () => {
+    langArea.querySelectorAll(".langBtn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.lang === currentLang);
+    });
+  };
+
+  keys.forEach(lang => {
+    const btn = document.createElement("button");
+    btn.className = "langBtn";
+    btn.textContent = flagMap[lang] || lang.toUpperCase();
+    btn.dataset.lang = lang;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation(); // ドラッグ開始を防ぐ
+      el.querySelector("img").src = langs[lang];
+      currentLang = lang;
+      updateHighlight();
+    });
+    langArea.appendChild(btn);
+  });
+  updateHighlight();
+}
 
 // ドロップエリアの基本イベント
 dropArea.addEventListener("dragover", (e) => {
@@ -103,7 +165,7 @@ dropArea.addEventListener("drop", (e) => {
   }
 });
 
-// プレビューレンダリング（Flexboxによる寄せ制御版）
+// プレビューレンダリング
 function renderDropPreview() {
   dropArea.innerHTML = "";
   if (droppedCards.length === 0) {
@@ -121,11 +183,9 @@ function renderDropPreview() {
   const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
   const finalCanvasWidth = Math.max(contentWidth, userTotalWidth);
 
-  // 外枠
   dropArea.style.display = "block";
   dropArea.style.padding = "10px";
 
-  // アートボード(出力サイズの枠)
   const artboard = document.createElement("div");
   artboard.className = "artboard";
   artboard.style.width = finalCanvasWidth + "px";
@@ -136,7 +196,6 @@ function renderDropPreview() {
   artboard.style.background = "#1a1a1a";
   artboard.style.padding = "0";
 
-  // カードを並べるGridコンテナ
   const inner = document.createElement("div");
   inner.style.display = "grid";
   inner.style.gridTemplateColumns = `repeat(${columns}, ${cardWidth}px)`;
@@ -167,10 +226,18 @@ function renderDropPreview() {
         const item = droppedCards.splice(parseInt(fromIdx), 1)[0];
         droppedCards.splice(idx, 0, item);
         renderDropPreview(); updateSizeInfo();
+      } else if (!fromIdx) {
+        const json = e.dataTransfer.getData("application/json");
+        if (json) {
+          const { url } = JSON.parse(json);
+          droppedCards.splice(idx, 0, url);
+          renderDropPreview(); updateSizeInfo();
+        }
       }
     });
     card.addEventListener("dragend", () => card.style.opacity = "1");
-    card.querySelector(".remove-btn").onclick = () => {
+    card.querySelector(".remove-btn").onclick = (e) => {
+      e.stopPropagation();
       droppedCards.splice(idx, 1);
       renderDropPreview(); updateSizeInfo();
     };
@@ -225,7 +292,7 @@ function loadImage(url) {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.src = url + "?t=" + new Date().getTime();
+    img.src = url + (url.includes('?') ? '&' : '?') + "t=" + new Date().getTime();
   });
 }
 
