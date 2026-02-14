@@ -195,7 +195,8 @@ function renderDropPreview() {
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
   const align = document.getElementById("align").value;
 
-  const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
+  const actualCols = Math.min(droppedCards.length, columns);
+  const contentWidth = (actualCols * cardWidth) + ((actualCols - 1) * gap);
   const finalCanvasWidth = userTotalWidth > 0 ? userTotalWidth : contentWidth;
 
   dropArea.style.display = "block";
@@ -214,7 +215,7 @@ function renderDropPreview() {
 
   const inner = document.createElement("div");
   inner.style.display = "grid";
-  inner.style.gridTemplateColumns = `repeat(${columns}, ${cardWidth}px)`;
+  inner.style.gridTemplateColumns = `repeat(${actualCols}, ${cardWidth}px)`;
   inner.style.gap = gap + "px";
   inner.style.width = contentWidth + "px";
   
@@ -280,7 +281,8 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
   const imgs = await Promise.all(droppedCards.map(url => loadImage(url)));
   const cardHeight = Math.round((cardWidth * imgs[0].naturalHeight) / imgs[0].naturalWidth);
   const rows = Math.ceil(imgs.length / columns);
-  const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
+  const actualCols = Math.min(imgs.length, columns);
+  const contentWidth = (actualCols * cardWidth) + ((actualCols - 1) * gap);
   const canvasWidth = userTotalWidth > 0 ? userTotalWidth : contentWidth;
   const canvasHeight = (rows * cardHeight) + ((rows - 1) * gap);
 
@@ -335,7 +337,8 @@ function updateSizeInfo() {
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
   const cardHeight = Math.round((cardWidth * baseImageSize.h) / baseImageSize.w);
   const rows = Math.ceil(droppedCards.length / columns);
-  const contentWidth = (columns * cardWidth) + ((columns - 1) * gap);
+  const actualCols = Math.min(droppedCards.length, columns);
+  const contentWidth = (actualCols * cardWidth) + ((actualCols - 1) * gap);
   const finalWidth = userTotalWidth > 0 ? userTotalWidth : contentWidth;
   const finalHeight = (rows * cardHeight) + ((rows - 1) * gap);
   sizeInfo.textContent = `出力予定: ${finalWidth} × ${finalHeight}px`;
