@@ -169,10 +169,10 @@ dropArea.addEventListener("drop", (e) => {
   if (e.dataTransfer.getData("text/reorder-idx")) return;
 
   const json = e.dataTransfer.getData("application/json");
-  if (json) {
+  if (json && !e.dataTransfer.getData("text/reorder-idx")) {
     const { url, w, h } = JSON.parse(json);
     if (!baseImageSize) baseImageSize = { w: Number(w), h: Number(h) };
-    droppedCards.push(url);
+    droppedCards.push({ url, rotation: 0 });
     renderDropPreview();
     updateSizeInfo();
   }
@@ -195,42 +195,65 @@ function renderDropPreview() {
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
   const align = document.getElementById("align").value;
 
-  const actualCols = Math.min(droppedCards.length, columns);
-  const contentWidth = (actualCols * cardWidth) + ((actualCols - 1) * gap);
-  const finalCanvasWidth = userTotalWidth > 0 ? userTotalWidth : contentWidth;
-
   dropArea.style.display = "block";
   dropArea.style.padding = "10px";
 
   // アートボード（描画領域）の作成
   const artboard = document.createElement("div");
   artboard.className = "artboard";
-  artboard.style.width = finalCanvasWidth + "px";
-  artboard.style.minWidth = finalCanvasWidth + "px";
-  artboard.style.display = "flex";
-  artboard.style.justifyContent = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+  // 幅は後で計算するか、行ごとに制御するためここではスタイルのみ
   artboard.style.border = "1px solid #666";
   artboard.style.background = "#1a1a1a";
   artboard.style.padding = "0";
-
-  const inner = document.createElement("div");
-  inner.style.display = "grid";
-  inner.style.gridTemplateColumns = `repeat(${actualCols}, ${cardWidth}px)`;
-  inner.style.gap = gap + "px";
-  inner.style.width = contentWidth + "px";
+  artboard.style.display = "block"; // 行を積む
   
-  artboard.appendChild(inner);
+  // 行ごとに分割して処理
+  const rows = [];
+  for (let i = 0; i < droppedCards.length; i += columns) {
+    rows.push(droppedCards.slice(i, i + columns));
+  }
 
-  // 各カードの描画と並び替えイベントの設定
-  droppedCards.forEach((url, idx) => {
-    const card = document.createElement("div");
-    card.className = "canvas-card";
-    card.draggable = true;
-    card.style.width = cardWidth + "px";
-    card.innerHTML = `
-      <img src="${url}" style="pointer-events:none; width:100%; display:block;" />
-      <button class="remove-btn" style="pointer-events:auto;">×</button>
-    `;
+  let maxRowWidth = 0;
+
+  rows.forEach((rowItems, rowIdx) => {
+    const rowDiv = document.createElement("div");
+    rowDiv.style.display = "flex";
+    rowDiv.style.gap = gap + "px";
+    rowDiv.style.marginBottom = gap + "px";
+    rowDiv.style.justifyContent = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+    
+    let currentRowWidth = 0;
+
+    rowItems.forEach((cardData, colIdx) => {
+      const idx = rowIdx * columns + colIdx;
+      const card = document.createElement("div");
+      card.className = "canvas-card";
+      card.draggable = true;
+      card.style.position = "relative";
+
+      // サイズ計算
+      // baseImageSizeのアスペクト比を使用
+      const ratio = baseImageSize ? (baseImageSize.h / baseImageSize.w) : 1.4;
+      const isRotated = (cardData.rotation / 90) % 2 !== 0;
+      
+      // 回転時は高さがcardWidthになる仕様 -> 幅は cardWidth * ratio
+      // 通常時は幅がcardWidthになる仕様 -> 高さは cardWidth * ratio
+      const displayW = Math.round(isRotated ? cardWidth * ratio : cardWidth);
+      const displayH = Math.round(isRotated ? cardWidth : cardWidth * ratio);
+
+      card.style.width = displayW + "px";
+      card.style.height = displayH + "px";
+      currentRowWidth += displayW;
+
+      // 画像の回転表示
+      const imgTransform = `translate(-50%, -50%) rotate(${cardData.rotation}deg)`;
+      card.innerHTML = `
+        <div style="width:100%; height:100%; overflow:hidden; position:relative;">
+          <img src="${cardData.url}" style="position:absolute; left:50%; top:50%; width:${isRotated ? displayH : displayW}px; height:${isRotated ? displayW : displayH}px; transform:${imgTransform}; pointer-events:none;" />
+        </div>
+        <button class="rotate-btn" style="pointer-events:auto; position:absolute; bottom:5px; left:5px; z-index:10;">↻</button>
+        <button class="remove-btn" style="pointer-events:auto; position:absolute; top:5px; right:5px; z-index:10;">×</button>
+      `;
 
     // 並び替えのためのドラッグイベント
     card.addEventListener("dragstart", (e) => {
@@ -249,21 +272,38 @@ function renderDropPreview() {
       } else if (!fromIdx) {
         const json = e.dataTransfer.getData("application/json");
         if (json) {
-          const { url } = JSON.parse(json);
-          droppedCards.splice(idx, 0, url);
+          const { url } = JSON.parse(json); // 新規ドロップ
+          droppedCards.splice(idx, 0, { url, rotation: 0 });
           renderDropPreview(); updateSizeInfo();
         }
       }
     });
     card.addEventListener("dragend", () => card.style.opacity = "1");
+    
     // 削除ボタン
     card.querySelector(".remove-btn").onclick = (e) => {
       e.stopPropagation();
       droppedCards.splice(idx, 1);
       renderDropPreview(); updateSizeInfo();
     };
-    inner.appendChild(card);
+
+    // 回転ボタン
+    card.querySelector(".rotate-btn").onclick = (e) => {
+      e.stopPropagation();
+      cardData.rotation = (cardData.rotation + 90) % 360;
+      renderDropPreview(); updateSizeInfo();
+    };
+
+      rowDiv.appendChild(card);
+    });
+
+    currentRowWidth += Math.max(0, rowItems.length - 1) * gap;
+    maxRowWidth = Math.max(maxRowWidth, currentRowWidth);
+    artboard.appendChild(rowDiv);
   });
+
+  const finalCanvasWidth = userTotalWidth > 0 ? userTotalWidth : maxRowWidth;
+  artboard.style.width = finalCanvasWidth + "px";
   dropArea.appendChild(artboard);
 }
 
@@ -278,34 +318,75 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
   const align = document.getElementById("align").value;
 
   // 全画像の読み込みを待機
-  const imgs = await Promise.all(droppedCards.map(url => loadImage(url)));
-  const cardHeight = Math.round((cardWidth * imgs[0].naturalHeight) / imgs[0].naturalWidth);
-  const rows = Math.ceil(imgs.length / columns);
-  const actualCols = Math.min(imgs.length, columns);
-  const contentWidth = (actualCols * cardWidth) + ((actualCols - 1) * gap);
-  const canvasWidth = userTotalWidth > 0 ? userTotalWidth : contentWidth;
-  const canvasHeight = (rows * cardHeight) + ((rows - 1) * gap);
+  const imgs = await Promise.all(droppedCards.map(c => loadImage(c.url)));
+  
+  // 行ごとのレイアウト計算
+  const rows = [];
+  for (let i = 0; i < droppedCards.length; i += columns) {
+    rows.push({
+      items: droppedCards.slice(i, i + columns),
+      imgs: imgs.slice(i, i + columns)
+    });
+  }
+
+  let maxWidth = 0;
+  let totalHeight = 0;
+  const rowMetrics = rows.map(row => {
+    let rowW = 0;
+    let rowH = 0;
+    const items = row.items.map((card, idx) => {
+      const img = row.imgs[idx];
+      const ratio = img.naturalHeight / img.naturalWidth;
+      const isRotated = (card.rotation / 90) % 2 !== 0;
+      // 回転時は高さがcardWidthになる -> 幅は cardWidth * ratio
+      const w = Math.round(isRotated ? cardWidth * ratio : cardWidth);
+      const h = Math.round(isRotated ? cardWidth : cardWidth * ratio);
+      rowW += w;
+      rowH = Math.max(rowH, h);
+      return { w, h, img, rotation: card.rotation };
+    });
+    rowW += Math.max(0, items.length - 1) * gap;
+    maxWidth = Math.max(maxWidth, rowW);
+    return { width: rowW, height: rowH, items };
+  });
+
+  totalHeight = rowMetrics.reduce((sum, r) => sum + r.height, 0) + Math.max(0, rowMetrics.length - 1) * gap;
+  const canvasWidth = userTotalWidth > 0 ? userTotalWidth : maxWidth;
 
   // Canvasの作成
   const canvas = document.createElement("canvas");
   canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
+  canvas.height = totalHeight;
   const ctx = canvas.getContext("2d");
 
-  // 配置のオフセット計算（左寄せ、中央、右寄せ）
-  let offsetX = (align === "center") ? (canvasWidth - contentWidth) / 2 : (align === "right") ? (canvasWidth - contentWidth) : 0;
+  let currentY = 0;
+  rowMetrics.forEach(row => {
+    let currentX = (align === "center") ? (canvasWidth - row.width) / 2 : (align === "right") ? (canvasWidth - row.width) : 0;
+    
+    row.items.forEach(item => {
+      const radius = Math.round(cardWidth * 0.045);
+      ctx.save();
+      // 中心へ移動して回転
+      const cx = currentX + item.w / 2;
+      const cy = currentY + item.h / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(item.rotation * Math.PI / 180);
+      
+      // 描画サイズ（回転コンテキスト上では、回転前の幅・高さで描画する）
+      // item.w, item.h は回転後のサイズ。
+      // 90度回転時: item.w は画像の高さ相当、item.h は画像の幅相当
+      const drawW = (item.rotation / 90) % 2 !== 0 ? item.h : item.w;
+      const drawH = (item.rotation / 90) % 2 !== 0 ? item.w : item.h;
 
-  // 画像の描画（角丸クリッピング適用）
-  imgs.forEach((img, i) => {
-    const x = offsetX + (i % columns) * (cardWidth + gap);
-    const y = Math.floor(i / columns) * (cardHeight + gap);
-    const radius = Math.round(cardWidth * 0.045);
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(x, y, cardWidth, cardHeight, radius);
-    ctx.clip();
-    ctx.drawImage(img, x, y, cardWidth, cardHeight);
-    ctx.restore();
+      ctx.beginPath();
+      ctx.roundRect(-drawW / 2, -drawH / 2, drawW, drawH, radius);
+      ctx.clip();
+      ctx.drawImage(item.img, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+
+      currentX += item.w + gap;
+    });
+    currentY += row.height + gap;
   });
 
   // 画像のダウンロード
@@ -335,13 +416,31 @@ function updateSizeInfo() {
   const cardWidth = parseInt(document.getElementById("cardWidth").value);
   const gap = parseInt(document.getElementById("gap").value);
   const userTotalWidth = parseInt(document.getElementById("totalWidth").value) || 0;
-  const cardHeight = Math.round((cardWidth * baseImageSize.h) / baseImageSize.w);
-  const rows = Math.ceil(droppedCards.length / columns);
-  const actualCols = Math.min(droppedCards.length, columns);
-  const contentWidth = (actualCols * cardWidth) + ((actualCols - 1) * gap);
-  const finalWidth = userTotalWidth > 0 ? userTotalWidth : contentWidth;
-  const finalHeight = (rows * cardHeight) + ((rows - 1) * gap);
+  
+  // 簡易計算：行ごとの最大幅と高さを積算
+  let maxWidth = 0;
+  let totalHeight = 0;
+  const ratio = baseImageSize.h / baseImageSize.w;
+
+  for (let i = 0; i < droppedCards.length; i += columns) {
+    const rowItems = droppedCards.slice(i, i + columns);
+    let rowW = 0;
+    let rowH = 0;
+    rowItems.forEach(c => {
+      const isRotated = (c.rotation / 90) % 2 !== 0;
+      const w = Math.round(isRotated ? cardWidth * ratio : cardWidth);
+      const h = Math.round(isRotated ? cardWidth : cardWidth * ratio);
+      rowW += w;
+      rowH = Math.max(rowH, h);
+    });
+    rowW += Math.max(0, rowItems.length - 1) * gap;
+    maxWidth = Math.max(maxWidth, rowW);
+    totalHeight += rowH + (i + columns < droppedCards.length ? gap : 0); // 最後の行以外gap追加
+  }
+
+  const finalWidth = userTotalWidth > 0 ? userTotalWidth : maxWidth;
   sizeInfo.textContent = `出力予定: ${finalWidth} × ${finalHeight}px`;
+  sizeInfo.textContent = `出力予定: ${finalWidth} × ${totalHeight}px`;
 }
 
 // 設定入力欄の変更イベントリスナー
