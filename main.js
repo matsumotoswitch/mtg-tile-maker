@@ -121,6 +121,7 @@ function addCardResult(card) {
   fetchAllPrints(printsUri).then(printCards => {
     const langs = {};
     printCards.forEach(p => {
+      if (p.set !== card.set) return;
       const pUrl = getCardImageUrl(p);
       if (pUrl) langs[p.lang] = pUrl;
     });
@@ -152,34 +153,36 @@ function renderLangButtons(el, langs, initialLang) {
   const keys = Object.keys(langs);
   if (keys.length === 0) return;
 
-  // セレクトボックスの作成
-  const select = document.createElement("select");
-  select.className = "lang-select";
-  
-  // ドラッグ開始を防ぐ
-  select.addEventListener("mousedown", (e) => e.stopPropagation());
-  select.addEventListener("click", (e) => e.stopPropagation());
-
-  // 言語切り替えイベント
-  select.addEventListener("change", (e) => {
-    const val = e.target.value;
-    if (langs[val]) {
-      el.querySelector("img").src = langs[val];
-    }
-  });
+  langArea.innerHTML = ""; // クリア
 
   let currentLang = initialLang && langs[initialLang] ? initialLang : keys[0];
 
-  keys.forEach(lang => {
-    const option = document.createElement("option");
-    option.value = lang;
-    option.textContent = flagMap[lang] || lang.toUpperCase();
-    if (lang === currentLang) option.selected = true;
-    select.appendChild(option);
-  });
+  const updateHighlight = () => {
+    langArea.querySelectorAll(".langBtn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.lang === currentLang);
+    });
+  };
 
-  langArea.innerHTML = "";
-  langArea.appendChild(select);
+  keys.forEach(lang => {
+    const btn = document.createElement("button");
+    btn.className = "langBtn";
+    btn.textContent = flagMap[lang] || lang.toUpperCase();
+    btn.dataset.lang = lang;
+    
+    // ドラッグ開始を防ぐ
+    btn.addEventListener("mousedown", (e) => e.stopPropagation());
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      if (langs[lang]) {
+        el.querySelector("img").src = langs[lang];
+        currentLang = lang;
+        updateHighlight();
+      }
+    };
+    langArea.appendChild(btn);
+  });
+  
+  updateHighlight();
 }
 
 // ドロップエリアのドラッグオーバー処理（スタイル変更）

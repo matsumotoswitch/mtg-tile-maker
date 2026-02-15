@@ -379,17 +379,43 @@ body {
   display: flex;
   flex: 1; /* 残りの幅を埋める */
   margin-left: 8px;
+  gap: 4px;
+  overflow-x: auto; /* 横スクロール可能に */
+  scrollbar-width: none; /* Firefox用スクロールバー非表示 */
+  -ms-overflow-style: none; /* IE/Edge用 */
+  align-items: center;
+  pointer-events: auto;
 }
-.lang-select {
-  width: 100%;
-  height: 24px;
-  font-size: 12px;
+/* Chrome/Safari用スクロールバー非表示 */
+.langArea::-webkit-scrollbar {
+  display: none;
+}
+
+.langBtn {
   background: #333;
-  color: #fff;
+  color: #ccc;
   border: 1px solid #555;
   border-radius: 3px;
-  padding: 0 2px;
+  padding: 2px 4px;
+  font-size: 10px;
   cursor: pointer;
+  min-width: 24px;
+  text-align: center;
+  flex-shrink: 0; /* 縮まないように */
+  font-weight: bold;
+  transition: all 0.1s;
+  pointer-events: auto;
+}
+
+.langBtn:hover {
+  background: #555;
+  color: #fff;
+}
+
+.langBtn.active {
+  background: #ffd700;
+  color: #000;
+  border-color: #ffd700;
 }
 
 /* --- モダンなスクロールバーのデザイン --- */
@@ -398,30 +424,6 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
-}
-
-/* スクロールバーの通り道（背景に馴染ませる） */
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
-}
-
-/* 動くバーの部分（つまみ） */
-::-webkit-scrollbar-thumb {
-  background: #6b6659; /* 本体の背景色より少し明るい茶灰色 */
-  border-radius: 10px;
-  border: 2px solid transparent; /* 周りに余白を作って細く見せる */
-  background-clip: content-box;
-}
-
-/* ホバー時：少し明るくして操作しやすく */
-::-webkit-scrollbar-thumb:hover {
-  background: #8e8877;
-}
-
-/* 角の部分 */
-::-webkit-scrollbar-corner {
-  background: transparent;
 }
 
 /* Firefox用の設定 */
